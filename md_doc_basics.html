@@ -30,7 +30,7 @@
   <td id="projectlogo"><img alt="Logo" src="logotiny.png"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">simdjson
-   &#160;<span id="projectnumber">3.1.1</span>
+   &#160;<span id="projectnumber">3.6.0</span>
    </div>
    <div id="projectbrief">Ridiculously Fast JSON</div>
   </td>
@@ -104,7 +104,7 @@ $(document).ready(function(){initNavTree('md_doc_basics.html',''); initResizable
 <li><a href="#parser-document-and-json-scope">Parser, Document and JSON Scope</a></li>
 </ul>
 </li>
-<li><a href="#c11-support-and-string_view">C++11 Support and string_view</a></li>
+<li><a href="#string_view">string_view</a></li>
 <li><a href="#using-the-parsed-json">Using the Parsed JSON</a><ul>
 <li><a href="#using-the-parsed-json-additional-examples">Using the Parsed JSON: Additional examples</a></li>
 </ul>
@@ -117,17 +117,21 @@ $(document).ready(function(){initNavTree('md_doc_basics.html',''); initResizable
 <li><a href="#disabling-exceptions">Disabling Exceptions</a></li>
 <li><a href="#exceptions">Exceptions</a></li>
 <li><a href="#current-location-in-document">Current location in document</a></li>
+<li><a href="#checking-for-trailing-content">Checking for trailing content</a></li>
 </ul>
 </li>
 <li><a href="#rewinding">Rewinding</a></li>
-<li><a href="#direct-access-to-the-raw-string">Direct Access to the Raw String</a></li>
 <li><a href="#newline-delimited-json-ndjson-and-json-lines">Newline-Delimited JSON (ndjson) and JSON lines</a></li>
 <li><a href="#parsing-numbers-inside-strings">Parsing Numbers Inside Strings</a></li>
 <li><a href="#dynamic-number-types">Dynamic Number Types</a></li>
 <li><a href="#raw-strings">Raw Strings</a></li>
+<li><a href="#general-direct-access-to-the-raw-json-string">General Direct Access to the Raw JSON String</a></li>
+<li><a href="#storing-directly-into-an-existing-string-instance">Storing Directly into an Existing String Instance</a></li>
 <li><a href="#thread-safety">Thread Safety</a></li>
 <li><a href="#standard-compliance">Standard Compliance</a></li>
 <li><a href="#backwards-compatibility">Backwards Compatibility</a></li>
+<li><a href="#examples">Examples</a></li>
+<li><a href="#performance-tips">Performance Tips</a></li>
 </ul>
 </li>
 </ul>
@@ -135,9 +139,9 @@ $(document).ready(function(){initNavTree('md_doc_basics.html',''); initResizable
 Requirements</h1>
 <ul>
 <li>A recent compiler (LLVM clang 6 or better, GNU GCC 7.4 or better, Xcode 11 or better) on a 64-bit (PPC, ARM or x64 Intel/AMD) POSIX systems such as macOS, freeBSD or Linux. We require that the compiler supports the C++11 standard or better.</li>
-<li>Visual Studio 2017 or better under 64-bit Windows. Users should target a 64-bit build (x64) instead of a 32-bit build (x86). We support the LLVM clang compiler under Visual Studio (clangcl) as well as as the regular Visual Studio compiler. We also support MinGW 64-bit under Windows.</li>
+<li>Visual Studio 2017 or better under 64-bit Windows. Users should target a 64-bit build (x64 or ARM64) instead of a 32-bit build (x86). We support the LLVM clang compiler under Visual Studio (clangcl) as well as as the regular Visual Studio compiler. We also support MinGW 64-bit under Windows.</li>
 </ul>
-<p>Support for AVX-512 require a processor with AVX512-VBMI2 support (Ice Lake or better) under a 64-bit system and a recent compiler (LLVM clang 6 or better, GCC 8 or better, Visual Studio 2019 or better). You need a correspondingly recent assembler such as gas (2.30+) or nasm (2.14+): recent compilers usually come with recent assemblers. If you mix a recent compiler with an incompatible/old assembler (e.g., when using a recent compiler with an old Linux distribution), you may get errors at build time because the compiler produces instructions that the assembler does not recognize: you should update your assembler to match your compiler (e.g., upgrade binutils to version 2.30 or better under Linux) or use an older compiler matching the capabilities of your assembler.</p>
+<p>Support for AVX-512 require a processor with AVX512-VBMI2 support (Ice Lake or better, AMD Zen 4 or better) under a 64-bit system and a recent compiler (LLVM clang 6 or better, GCC 8 or better, Visual Studio 2019 or better). You need a correspondingly recent assembler such as gas (2.30+) or nasm (2.14+): recent compilers usually come with recent assemblers. If you mix a recent compiler with an incompatible/old assembler (e.g., when using a recent compiler with an old Linux distribution), you may get errors at build time because the compiler produces instructions that the assembler does not recognize: you should update your assembler to match your compiler (e.g., upgrade binutils to version 2.30 or better under Linux) or use an older compiler matching the capabilities of your assembler.</p>
 <p>We test the library on a big-endian system (IBM s390x with Linux) .</p>
 <h1><a class="anchor" id="autotoc_md1"></a>
 Including simdjson</h1>
@@ -187,12 +191,13 @@ Versions</h1>
 <h1><a class="anchor" id="autotoc_md5"></a>
 The Basics: Loading and Parsing JSON Documents</h1>
 <p>The simdjson library allows you to navigate and validate JSON documents (<a href="https://www.tbray.org/ongoing/When/201x/2017/12/14/rfc8259.html">RFC 8259</a>). As required by the standard, your JSON document should be in a Unicode (UTF-8) string. The whole string, from the beginning to the end, needs to be valid: we do not attempt to tolerate bad inputs before or after a document.</p>
+<p>For efficiency reasons, simdjson requires a string with a few bytes (<code><a class="el" href="namespacesimdjson.html#aecdd750132f0eb123a6d61113b4197bf" title="The amount of padding needed in a buffer to parse JSON.">simdjson::SIMDJSON_PADDING</a></code>) at the end, these bytes may be read but their content does not affect the parsing. In practice, it means that the JSON inputs should be stored in a memory region with <code><a class="el" href="namespacesimdjson.html#aecdd750132f0eb123a6d61113b4197bf" title="The amount of padding needed in a buffer to parse JSON.">simdjson::SIMDJSON_PADDING</a></code> extra bytes at the end. You do not have to set these bytes to specific values though you may want to if you want to avoid runtime warnings with some sanitizers.</p>
 <p>The simdjson library offers a tree-like <a href="https://en.wikipedia.org/wiki/API">API</a>, which you can access by creating a <code>ondemand::parser</code> and calling the <code>iterate()</code> method. The iterate method quickly indexes the input string and may detect some errors. The following example illustrates how to get started with an input JSON file (<code>"twitter.json"</code>):</p>
 <div class="fragment"><div class="line"> {c++}</div>
 <div class="line">ondemand::parser parser;</div>
 <div class="line">auto json = padded_string::load(&quot;twitter.json&quot;); // load JSON file &#39;twitter.json&#39;.</div>
 <div class="line">ondemand::document doc = parser.iterate(json); // position a pointer at the beginning of the JSON data</div>
-</div><!-- fragment --><p>You can also create a padded string&mdash;for efficiency reasons, simdjson requires a string with a few bytes (<code><a class="el" href="namespacesimdjson.html#aecdd750132f0eb123a6d61113b4197bf" title="The amount of padding needed in a buffer to parse JSON.">simdjson::SIMDJSON_PADDING</a></code>) at the end&mdash;and calling <code>iterate()</code>:</p>
+</div><!-- fragment --><p>You can also create a padded string&mdash;and call <code>iterate()</code>:</p>
 <div class="fragment"><div class="line"> {c++}</div>
 <div class="line">ondemand::parser parser;</div>
 <div class="line">auto json = &quot;[1,2,3]&quot;_padded; // The _padded suffix creates a simdjson::padded_string instance</div>
@@ -203,9 +208,22 @@ The Basics: Loading and Parsing JSON Documents</h1>
 <div class="line">char json[3+SIMDJSON_PADDING];</div>
 <div class="line">strcpy(json, &quot;[1]&quot;);</div>
 <div class="line">ondemand::document doc = parser.iterate(json, strlen(json), sizeof(json));</div>
-</div><!-- fragment --><p>The simdjson library will also accept <code>std::string</code> instances, as long as the <code>capacity()</code> of the string exceeds the <code>size()</code> by at least <code>SIMDJSON_PADDING</code>. You can increase the <code>capacity()</code> with the <code>reserve()</code> function of your strings.</p>
-<p>We recommend against creating many <code>std::string</code> or many <code>std::padding_string</code> instances in your application to store your JSON data. Consider reusing the same buffers and limiting memory allocations.</p>
+</div><!-- fragment --><p>The simdjson library will also accept <code>std::string</code> instances. If the provided reference is non-const, it will allocate padding as needed.</p>
+<p>You can copy your data directly on a <code><a class="el" href="structsimdjson_1_1padded__string.html" title="String with extra allocation for ease of use with parser::parse()">simdjson::padded_string</a></code> as follows:</p>
+<div class="fragment"><div class="line"> {c++}</div>
+<div class="line">const char * data = &quot;my data&quot;; // 7 bytes</div>
+<div class="line">simdjson::padded_string my_padded_data(data, 7); // copies to a padded buffer</div>
+</div><!-- fragment --><p>Or as follows...</p>
+<div class="fragment"><div class="line"> {c++}</div>
+<div class="line">std::string data = &quot;my data&quot;;</div>
+<div class="line">simdjson::padded_string my_padded_data(data); // copies to a padded buffer</div>
+</div><!-- fragment --><p>We recommend against creating many <code>std::string</code> or many <code>std::padding_string</code> instances in your application to store your JSON data. Consider reusing the same buffers and limiting memory allocations.</p>
 <p>By default, the simdjson library throws exceptions (<code>simdjson_error</code>) on errors. We omit <code>try</code>-<code>catch</code> clauses from our illustrating examples: if you omit <code>try</code>-<code>catch</code> in your code, an uncaught exception will halt your program. It is also possible to use simdjson without generating exceptions, and you may even build the library without exception support at all. See <a href="#error-handling">Error Handling</a> for details.</p>
+<p>Some users may want to browse code along with the compiled assembly. You want to check out the following lists of examples:</p>
+<ul>
+<li><a href="https://godbolt.org/z/98Kx9Kqjn">simdjson examples with errors handled through exceptions</a></li>
+<li><a href="https://godbolt.org/z/PKG7GdbPo">simdjson examples with errors without exceptions</a></li>
+</ul>
 <h1><a class="anchor" id="autotoc_md6"></a>
 Documents are Iterators</h1>
 <p>The simdjson library relies on an approach to parsing JSON that we call "On Demand". A <code>document</code> is <em>not</em> a fully-parsed JSON value; rather, it is an <b>iterator</b> over the JSON text. This means that while you iterate an array, or search for a field in an object, it is actually walking through the original JSON text, merrily reading commas and colons and brackets to make sure you get where you are going. This is the key to On Demand's performance: since it's just an iterator, it lets you parse values as you use them. And particularly, it lets you <em>skip</em> values you do not want to use.</p>
@@ -219,8 +237,9 @@ Parser, Document and JSON Scope</h2>
 </ul>
 <p>During the <code>iterate</code> call, the original JSON text is never modified&ndash;only read. After you are done with the document, the source (whether file or string) can be safely discarded.</p>
 <p>For best performance, a <code>parser</code> instance should be reused over several files: otherwise you will needlessly reallocate memory, an expensive process. It is also possible to avoid entirely memory allocations during parsing when using simdjson. <a class="el" href="md_doc_performance.html">See our performance notes for details</a>.</p>
+<p>If you need to have several documents active at once, you should have several parser instances.</p>
 <h1><a class="anchor" id="autotoc_md8"></a>
-C++11 Support and string_view</h1>
+string_view</h1>
 <p>The simdjson library builds on compilers supporting the <a href="https://en.wikipedia.org/wiki/C%2B%2B11">C++11 standard</a>. It is also a strict requirement: we have no plan to support older C++ compilers.</p>
 <p>We represent parsed Unicode (UTF-8) strings in simdjson using the <code>std::string_view</code> class. It avoids the need to copy the data, as would be necessary with the <code>std::string</code> class. It also avoids the pitfalls of null-terminated C strings. It makes it easier for our users to copy the data into their own favorite class instances (e.g., alternatives to <code>std::string</code>).</p>
 <p>A <code>std::string_view</code> instance is effectively just a pointer to a region in memory representing a string. In simdjson, we return <code>std::string_view</code> instances that either point within the input string you parsed, or to a temporary string buffer inside our parser class instances. When using <code>std::string_view</code> instances, it is your responsibility to ensure that <code>std::string_view</code> instance does not outlive the pointed-to memory (e.g., either the input buffer or the parser instance). Furthermore, some operations reset the string buffer inside our parser instances: e.g., when we parse a new document. Thus a <code>std::string_view</code> instance is often best viewed as a temporary string value that is tied to the document you are parsing. At the cost of some memory allocation, you may convert your <code>std::string_view</code> instances for long-term storage into <code>std::string</code> instances: <code>std::string mycopy(view)</code> (C++17) or <code>std::string mycopy(view.begin(), view.end())</code> (prior to C++17).</p>
@@ -237,18 +256,20 @@ Using the Parsed JSON</h1>
 <li>Because On Demand is really just an iterator, you must fully consume the current object or array before accessing a sibling object or array.</li>
 <li>Values can only be consumed once, you should get the values and store them if you plan to need them multiple times. You are expected to access the keys of an object just once. You are expected to go through the values of an array just once.</li>
 </ol>
+<p>The simdjson library makes generous use of <code>std::string_view</code> instances. If you are unfamiliar with <code>std::string_view</code> in C++, make sure to <a href="#string_view">read the section on std::string_view</a>. They behave much like an immutable <code>std::string</code> but they require no memory allocation. You can create a <code>std::string</code> instance from an <code>std::string_view</code> when you need it.</p>
 <p>The following specific instructions indicate how to use the JSON when exceptions are enabled, but simdjson has full, idiomatic support for users who avoid exceptions. See <a href="basics.md#error-handling">the simdjson error handling documentation</a> for more.</p>
 <ul>
-<li><b>Validate What You Use:</b> When calling <code>iterate</code>, the document is quickly indexed. If it is not a valid Unicode (UTF-8) string or if there is an unclosed string, an error may be reported right away. However, it is not fully validated. On Demand only fully validates the values you use and the structure leading to it.</li>
-<li><b>Extracting Values:</b> You can cast a JSON element to a native type: <code>double(element)</code>. This works for <code>std::string_view</code>, double, uint64_t, int64_t, bool, ondemand::object and ondemand::array. We also have explicit methods such as <code>get_string()</code>, <code>get_double()</code>, <code>get_uint64()</code>, <code>get_int64()</code>, <code>get_bool()</code>, <code>get_object()</code> and <code>get_array()</code>. After a cast or an explicit method, the number, string or boolean will be parsed, or the initial <code>[</code> or <code>{</code> will be verified. An exception is thrown if the cast is not possible. The <code>get_string()</code> returns a valid UTF-8 string, after unescaping characters as needed: unmatched surrogate pairs are treated as an error. When calling <code>get_uint64()</code> and <code>get_int64()</code>, if the number does not fit in a corresponding 64-bit integer type, it is also considered an error.</li>
+<li><b>Validate What You Use:</b> When calling <code>iterate</code>, the document is quickly indexed. If it is not a valid Unicode (UTF-8) string or if there is an unclosed string, an error may be reported right away. However, it is not fully validated. On Demand only fully validates the values you use and the structure leading to it. It means that at every step as you traverse the document, you may encounter an error. You can handle errors either with exceptions or with error codes.</li>
+<li><b>Extracting Values:</b> You can cast a JSON element to a native type: <code>double(element)</code>. This works for <code>std::string_view</code>, double, uint64_t, int64_t, bool, ondemand::object and ondemand::array. We also have explicit methods such as <code>get_string()</code>, <code>get_double()</code>, <code>get_uint64()</code>, <code>get_int64()</code>, <code>get_bool()</code>, <code>get_object()</code> and <code>get_array()</code>. After a cast or an explicit method, the number, string or boolean will be parsed, or the initial <code>{</code> or <code>[</code> will be verified for <code>ondemand::object</code> and <code>ondemand::array</code>. An exception may be thrown if the cast is not possible: there error code is <code><a class="el" href="namespacesimdjson.html#a7b735a3a50ba79e3f7f14df5f77d8da9a1de02af1d67e8350f612eee0dcf634b4" title="JSON element has a different type than user expected.">simdjson::INCORRECT_TYPE</a></code> (see <a href="#error-handling">Error Handling</a>). Importantly, when getting an ondemand::object or ondemand::array instance, its content is not validated: you are only guaranteed that the corresponding initial character (<code>{</code> or <code>[</code>) is present. Thus, for example, you could have an ondemand::object instance pointing at the invalid JSON <code>{ "this is not a valid object" }</code>: the validation occurs as you access the content. The <code>get_string()</code> returns a valid UTF-8 string, after unescaping characters as needed: unmatched surrogate pairs are treated as an error unless you pass <code>true</code> (<code>get_string(true)</code>) as a parameter to get replacement characters where errors occur. If you somehow need to access non-UTF-8 strings in a lossless manner (e.g., if you strings contain unpaired surrogates), you may use the <code>get_wobbly_string()</code> function to get a string in the <a href="https://simonsapin.github.io/wtf-8">WTF-8 format</a>. When calling <code>get_uint64()</code> and <code>get_int64()</code>, if the number does not fit in a corresponding 64-bit integer type, it is also considered an error. When parsing numbers or other scalar values, the library checks that the value is followed by an expected character, thus you <em>may</em> get a number parsing error when accessing the digits as an integer in the following strings: <code>{"number":12332a</code>, <code>{"number":12332\0</code>, <code>{"number":12332</code> (the digits appear at the end). We always abide by the <a href="https://www.tbray.org/ongoing/When/201x/2017/12/14/rfc8259.html">RFC 8259</a> JSON specification so that, for example, numbers prefixed by the <code>+</code> sign are in error.</li>
 </ul>
 <blockquote class="doxtable">
 <p>IMPORTANT NOTE: values can only be parsed once. Since documents are <em>iterators</em>, once you have parsed a value (such as by casting to double), you cannot get at it again. It is an error to call <code>get_string()</code> twice on an object (or to cast an object twice to <code>std::string_view</code>). </p>
 </blockquote>
-<p>* <b>Field Access:</b> To get the value of the "foo" field in an object, use <code>object["foo"]</code>. This will scan through the object looking for the field with the matching string, doing a character-by-character comparison. For efficiency reason, you should avoid looking up the same field repeatedly: e.g., do not do <code>object["foo"]</code> followed by <code>object["foo"]</code> with the same <code>object</code> instance. If you consume an object twice: <code>std::string_view(object["foo"]</code> followed by <code>std::string_view(object["foo"]</code>, your code is in error. Furthermore, you can only consume one field at a time, on the same object. The value instance you get from <code>content["bids"]</code> becomes invalid when you call <code>content["asks"]</code>. If you have retrieved <code>content["bids"].get_array()</code> and you later call <code>content["asks"].get_array()</code>, then the first array should no longer be accessed: it would be unsafe to do so. You can detect such mistakes by first compiling and running the code in Debug mode: an OUT_OF_ORDER_ITERATION error is generated.</p>
+<p>* <b>Field Access:</b> To get the value of the "foo" field in an object, use <code>object["foo"]</code>. This will scan through the object looking for the field with the matching string, doing a character-by-character comparison. It may generate the error <code><a class="el" href="namespacesimdjson.html#a7b735a3a50ba79e3f7f14df5f77d8da9a4a2c71f8eca438b3f0553a2811bdab9a" title="JSON field not found in object.">simdjson::NO_SUCH_FIELD</a></code> if there is no such key in the object, it may throw an exception (see <a href="#error-handling">Error Handling</a>). For efficiency reason, you should avoid looking up the same field repeatedly: e.g., do not do <code>object["foo"]</code> followed by <code>object["foo"]</code> with the same <code>object</code> instance. Keep in mind that On Demand does not buffer or save the result of the parsing: if you repeatedly access <code>object["foo"]</code>, then it must repeatedly seek the key and parse the content. The library does not provide a distinct function to check if a key is present, instead we recommend you attempt to access the key: e.g., by doing <code>ondemand::value val{}; if (!object["foo"].get(val)) {...}</code>, you have that <code>val</code> contains the requested value inside the if clause. It is your responsibility as a user to temporarily keep a reference to the value (<code>auto v = object["foo"]</code>), or to consume the content and store it in your own data structures. If you consume an object twice: <code>std::string_view(object["foo"]</code> followed by <code>std::string_view(object["foo"]</code> then your code is in error. Furthermore, you can only consume one field at a time, on the same object. The value instance you get from <code>content["bids"]</code> becomes invalid when you call <code>content["asks"]</code>. If you have retrieved <code>content["bids"].get_array()</code> and you later call <code>content["asks"].get_array()</code>, then the first array should no longer be accessed: it would be unsafe to do so. You can detect such mistakes by first compiling and running the code in Debug mode: an OUT_OF_ORDER_ITERATION error is generated.</p>
 <blockquote class="doxtable">
-<p>NOTE: JSON allows you to escape characters in keys. E.g., the key <code>"date"</code> may be written as <code>"\u0064\u0061\u0074\u0065"</code>. By default, simdjson does <em>not</em> unescape keys when matching by default. Thus if you search for the key <code>"date"</code> and the JSON document uses <code>"\u0064\u0061\u0074\u0065"</code> as a key, it will not be recognized. This is not generally a problem. Nevertheless, if you do need to support escaped keys, the method <code>unescaped_key()</code> provides the desired unescaped keys by parsing and writing out the unescaped keys to a string buffer and returning a <code>std::string_view</code> instance. You should expect a performance penalty when using <code>unescaped_key()</code>. </p><div class="fragment"><div class="line"> {c++}</div>
-<div class="line">&gt; auto json = R&quot;({&quot;k\u0065y&quot;: 1})&quot;_padded;</div>
+<p>NOTE: JSON allows you to escape characters in keys. E.g., the key <code>"date"</code> may be written as <code>"\u0064\u0061\u0074\u0065"</code>. By default, simdjson does <em>not</em> unescape keys when matching by default. Thus if you search for the key <code>"date"</code> and the JSON document uses <code>"\u0064\u0061\u0074\u0065"</code> as a key, it will not be recognized. This is not generally a problem. Nevertheless, if you do need to support escaped keys, the method <code>unescaped_key()</code> provides the desired unescaped keys by parsing and writing out the unescaped keys to a string buffer and returning a <code>std::string_view</code> instance. The <code>unescaped_key</code> takes an optional Boolean value: passing it true will decode invalid Unicode sequences with replacement, meaning that the decoding always succeeds but bogus Unicode replacement characters are inserted. In general, you should expect a performance penalty when using <code>unescaped_key()</code> compared to <code>key()</code> because of the string processing: the <code>key()</code> function just points inside the source JSON document.</p>
+<div class="fragment"><div class="line"> {c++}</div>
+<div class="line">auto json = R&quot;({&quot;k\u0065y&quot;: 1})&quot;_padded;</div>
 <div class="line">ondemand::parser parser;</div>
 <div class="line">auto doc = parser.iterate(json);</div>
 <div class="line">ondemand::object object = doc.get_object();</div>
@@ -256,7 +277,7 @@ Using the Parsed JSON</h1>
 <div class="line">   // parses and writes out the key, after unescaping it,</div>
 <div class="line">   // to a string buffer. It causes a performance penalty.</div>
 <div class="line">   std::string_view keyv = field.unescaped_key();</div>
-<div class="line">   if(keyv == &quot;key&quot;) { std::cout &lt;&lt; uint64_t(field.value()); }</div>
+<div class="line">   if (keyv == &quot;key&quot;) { std::cout &lt;&lt; uint64_t(field.value()); }</div>
 <div class="line"> }</div>
 </div><!-- fragment --><p>By default, field lookup is order-insensitive, so you can look up values in any order. However, we still encourage you to look up fields in the order you expect them in the JSON, as it is still faster.</p>
 <p>If you want to enforce finding fields in order, you can use <code>object.find_field("foo")</code> instead. This will only look forward, and will fail to find fields in the wrong order: for example, this will fail:</p>
@@ -275,9 +296,10 @@ Using the Parsed JSON</h1>
 <div class="line">double x = doc[&quot;x&quot;]; // Success: [] loops back around to find &quot;x&quot;</div>
 </div><!-- fragment --> </blockquote>
 <p>* <b>Array Iteration:</b> To iterate through an array, use <code>for (auto value : array) { ... }</code>. This will step through each value in the JSON array.</p>
-<p>If you know the type of the value, you can cast it right there, too! <code>for (double value : array) { ... }</code>.</p><ul>
-<li><b>Object Iteration:</b> You can iterate through an object's fields, as well: <code>for (auto field : object) { ... }</code><ul>
-<li><code>field.unescaped_key()</code> will get you the unescaped key string.</li>
+<p>If you know the type of the value, you can cast it right there, too! <code>for (double value : array) { ... }</code>.</p>
+<p>You may also use explicit iterators: <code>for(auto i = array.begin(); i != array.end(); i++) {}</code>. You can check that an array is empty with the condition <code>auto i = array.begin(); if(i == array.end()) {...}</code>.</p><ul>
+<li><b>Object Iteration:</b> You can iterate through an object's fields, as well: <code>for (auto field : object) { ... }</code>. You may also use explicit iterators : <code>for(auto i = object.begin(); i != object.end(); i++) { auto field = *i; .... }</code>. You can check that an object is empty with the condition <code>auto i = object.begin(); if(i == object.end()) {...}</code>.<ul>
+<li><code>field.unescaped_key()</code> will get you the unescaped key string. E.g., the JSON string <code>"\u00e1"</code> becomes the Unicode string <code>á</code>. Optionally, you pass <code>true</code> as a parameter to the <code>unescaped_key</code> method if you want invalid escape sequences to be replaced by a default replacement character (e.g., <code>\ud800\ud801\ud811</code>): otherwise bad escape sequences lead to an immediate error.</li>
 <li><code>field.value()</code> will get you the value, which you can then use all these other methods on.</li>
 </ul>
 </li>
@@ -287,7 +309,7 @@ Using the Parsed JSON</h1>
   { "make": "Toyota", "model": "Camry",  "year": 2018, "tire_pressure": [ 40.1, 39.9, 37.7, 40.4 ] },
   { "make": "Kia",    "model": "Soul",   "year": 2012, "tire_pressure": [ 30.1, 31.0, 28.6, 28.7 ] },
   { "make": "Toyota", "model": "Tercel", "year": 1999, "tire_pressure": [ 29.8, 30.0, 30.2, 30.5 ] }
-] )"_padded; std::vector&lt;std::string_view&gt; arrays; // We are going to collect string_view instances which point inside the <code>cars_json</code> string // and are therefore valid as long as <code>cars_json</code> remains in scope. { ondemand::parser parser; for (ondemand::object car : parser.iterate(cars_json)) { if(uint64_t(car["year"]) &gt; 2000) { arrays.push_back(<a class="el" href="namespacesimdjson.html#a2cda17221b852e5c398bad5bf350d270" title="Create a string-view instance out of a document instance.">simdjson::to_json_string</a>(car["tire_pressure"])); } } } // We can now convert to a JSON string: std::ostringstream oss; oss &lt;&lt; "["; for(size_t i = 0; i &lt; arrays.size(); i++) { if(i&gt;0) { oss &lt;&lt; ","; } oss &lt;&lt; arrays[i]; } oss &lt;&lt; "]"; auto json_string = oss.str(); // json_string == "[[ 40.1, 39.9, 37.7, 40.4 ],[ 30.1, 31.0, 28.6, 28.7 ]]" &gt;```<code> &lt;/blockquote&gt;* **Extracting Values (without exceptions):** You can use a variant usage of</code>get()<code>with error codes to avoid exceptions. You first declare the variable of the appropriate type (</code>double<code>, </code>uint64_t<code>,</code>int64_t<code>,</code>bool<code>,</code>ondemand::object&lt;tt&gt;andondemand::array&lt;tt&gt;) and pass it by reference toget()` which gives you back an error code: e.g.,</p>
+] )"_padded; std::vector&lt;std::string_view&gt; arrays; // We are going to collect string_view instances which point inside the <code>cars_json</code> string // and are therefore valid as long as <code>cars_json</code> remains in scope. { ondemand::parser parser; for (ondemand::object car : parser.iterate(cars_json)) { if (uint64_t(car["year"]) &gt; 2000) { arrays.push_back(<a class="el" href="namespacesimdjson.html#a2cda17221b852e5c398bad5bf350d270" title="Create a string-view instance out of a document instance.">simdjson::to_json_string</a>(car["tire_pressure"])); } } } // We can now convert to a JSON string: std::ostringstream oss; oss &lt;&lt; "["; for(size_t i = 0; i &lt; arrays.size(); i++) { if (i&gt;0) { oss &lt;&lt; ","; } oss &lt;&lt; arrays[i]; } oss &lt;&lt; "]"; auto json_string = oss.str(); // json_string == "[[ 40.1, 39.9, 37.7, 40.4 ],[ 30.1, 31.0, 28.6, 28.7 ]]" &gt;```<code> &lt;/blockquote&gt;* **Extracting Values (without exceptions):** You can use a variant usage of</code>get()<code>with error codes to avoid exceptions. You first declare the variable of the appropriate type (</code>double<code>, </code>uint64_t<code>,</code>int64_t<code>,</code>bool<code>,</code>ondemand::object&lt;tt&gt;andondemand::array&lt;tt&gt;) and pass it by reference toget()` which gives you back an error code: e.g.,</p>
 <div class="fragment"><div class="line">{c++}</div>
 <div class="line"> auto abstract_json = R&quot;(</div>
 <div class="line">   { &quot;str&quot; : { &quot;123&quot; : {&quot;abc&quot; : 3.14 } } }</div>
@@ -299,7 +321,7 @@ Using the Parsed JSON</h1>
 <div class="line"> auto error = doc[&quot;str&quot;][&quot;123&quot;][&quot;abc&quot;].get(value);</div>
 <div class="line"> if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return EXIT_FAILURE; }</div>
 <div class="line"> cout &lt;&lt; value &lt;&lt; endl; // Prints 3.14</div>
-</div><!-- fragment --><p> This examples also show how we can string several operations and only check for the error once, a strategy we call <em>error chaining</em>. Though error chaining makes the code very compact, it also makes error reporting less precise: in this instance, you may get the same error whether the field "str", "123" or "abc" is missing. If you need to break down error handling per operation, avoid error chaining.</p>
+</div><!-- fragment --><p> This examples also show how we can string several operations and only check for the error once, a strategy we call <em>error chaining</em>. Though error chaining makes the code very compact, it also makes error reporting less precise: in this instance, you may get the same error whether the field "str", "123" or "abc" is missing. If you need to break down error handling per operation, avoid error chaining. Furthermore, you should be mindful that chaining that harm performance by encouraging redundancies: writing both <code>doc["str"]["123"]["abc"].get(value)</code> and <code>doc["str"]["123"]["zyw"].get(value)</code> in the same program may force multiple accesses to the same keys (<code>"str"</code> and <code>"123"</code>).</p>
 </blockquote>
 </li>
 <li><b>Counting elements in arrays:</b> Sometimes it is useful to scan an array to determine its length prior to parsing it. For this purpose, <code>array</code> instances have a <code>count_elements</code> method. Users should be aware that the <code>count_elements</code> method can be costly since it requires scanning the whole array. You should only call <code>count_elements</code> as a last resort as it may require scanning the document twice or more. You may use it as follows if your document is itself an array:</li>
@@ -393,7 +415,7 @@ Using the Parsed JSON</h1>
 <div class="line">   case ondemand::json_type::null:</div>
 <div class="line">     // We check that the value is indeed null</div>
 <div class="line">     // otherwise: an error is thrown.</div>
-<div class="line">     if(element.is_null()) {</div>
+<div class="line">     if (element.is_null()) {</div>
 <div class="line">       cout &lt;&lt; &quot;null&quot;;</div>
 <div class="line">     }</div>
 <div class="line">     break;</div>
@@ -435,6 +457,36 @@ Using the Parsed JSON: Additional examples</h2>
 <div class="line"> </div>
 <div class="line">// Iterating through an array of objects</div>
 <div class="line">for (ondemand::object car : parser.iterate(cars_json)) {</div>
+<div class="line">  // Accessing a field by name</div>
+<div class="line">  cout &lt;&lt; &quot;Make/Model: &quot; &lt;&lt; std::string_view(car[&quot;make&quot;]) &lt;&lt; &quot;/&quot; &lt;&lt; std::string_view(car[&quot;model&quot;]) &lt;&lt; endl;</div>
+<div class="line"> </div>
+<div class="line">  // Casting a JSON element to an integer</div>
+<div class="line">  uint64_t year = car[&quot;year&quot;];</div>
+<div class="line">  cout &lt;&lt; &quot;- This car is &quot; &lt;&lt; 2020 - year &lt;&lt; &quot;years old.&quot; &lt;&lt; endl;</div>
+<div class="line"> </div>
+<div class="line">  // Iterating through an array of floats</div>
+<div class="line">  double total_tire_pressure = 0;</div>
+<div class="line">  for (double tire_pressure : car[&quot;tire_pressure&quot;]) {</div>
+<div class="line">    total_tire_pressure += tire_pressure;</div>
+<div class="line">  }</div>
+<div class="line">  cout &lt;&lt; &quot;- Average tire pressure: &quot; &lt;&lt; (total_tire_pressure / 4) &lt;&lt; endl;</div>
+<div class="line">}</div>
+</div><!-- fragment --><p>The previous example had an array of objects, but we can use essentially the same approach with an object of objects.</p>
+<div class="fragment"><div class="line"> {c++}</div>
+<div class="line">ondemand::parser parser;</div>
+<div class="line">auto cars_json = R&quot;( {</div>
+<div class="line">  &quot;identifier1&quot;:{ &quot;make&quot;: &quot;Toyota&quot;, &quot;model&quot;: &quot;Camry&quot;,  &quot;year&quot;: 2018, &quot;tire_pressure&quot;: [ 40.1, 39.9, 37.7, 40.4 ] },</div>
+<div class="line">  &quot;identifier2&quot;:{ &quot;make&quot;: &quot;Kia&quot;,    &quot;model&quot;: &quot;Soul&quot;,   &quot;year&quot;: 2012, &quot;tire_pressure&quot;: [ 30.1, 31.0, 28.6, 28.7 ] },</div>
+<div class="line">  &quot;identifier3&quot;:{ &quot;make&quot;: &quot;Toyota&quot;, &quot;model&quot;: &quot;Tercel&quot;, &quot;year&quot;: 1999, &quot;tire_pressure&quot;: [ 29.8, 30.0, 30.2, 30.5 ] }</div>
+<div class="line">} )&quot;_padded;</div>
+<div class="line">// Iterating through an array of objects</div>
+<div class="line">ondemand::document doc = parser.iterate(cars_json);</div>
+<div class="line">for (ondemand::field key_car : doc.get_object()) {</div>
+<div class="line">  // If I need a string_view and/or, I can use key_car.unescaped_key() instead, but</div>
+<div class="line">  // key_car.key() will be more performant otherwise.</div>
+<div class="line">  cout &lt;&lt; &quot;identifier : &quot; &lt;&lt; key_car.key() &lt;&lt; std::endl;</div>
+<div class="line">  // I can now access the subobject:</div>
+<div class="line">  ondemand::object car = key_car.value();</div>
 <div class="line">  // Accessing a field by name</div>
 <div class="line">  cout &lt;&lt; &quot;Make/Model: &quot; &lt;&lt; std::string_view(car[&quot;make&quot;]) &lt;&lt; &quot;/&quot; &lt;&lt; std::string_view(car[&quot;model&quot;]) &lt;&lt; endl;</div>
 <div class="line"> </div>
@@ -594,7 +646,13 @@ Error Handling</h1>
 <div class="line">ondemand::document doc;</div>
 <div class="line">auto error = parser.iterate(json).get(doc);</div>
 <div class="line">if (error) { cerr &lt;&lt; error &lt;&lt; endl; exit(1); }</div>
-</div><!-- fragment --><p>When there is no error, the error code <a class="el" href="namespacesimdjson.html#a7b735a3a50ba79e3f7f14df5f77d8da9aa4ffc800804829a88c5b52ac3c4c6681" title="No error.">simdjson::SUCCESS</a> is returned: it evaluates as false as a Boolean. We have several error codes to indicate errors, they all evaluate to true as a Boolean: your software should not generally not depend on exact error codes. We may change the error codes in future releases and the exact error codes could vary depending on your system.</p>
+</div><!-- fragment --><p>When there is no error, the error code <code><a class="el" href="namespacesimdjson.html#a7b735a3a50ba79e3f7f14df5f77d8da9aa4ffc800804829a88c5b52ac3c4c6681" title="No error.">simdjson::SUCCESS</a></code>is returned: it evaluates as false as a Boolean. We have several error codes to indicate errors, they all evaluate to true as a Boolean: your software should not generally not depend on exact error codes. We may change the error codes in future releases and the exact error codes could vary depending on your system.</p>
+<p>Some errors are recoverable:</p>
+<ul>
+<li>You may get the error <code><a class="el" href="namespacesimdjson.html#a7b735a3a50ba79e3f7f14df5f77d8da9a1de02af1d67e8350f612eee0dcf634b4" title="JSON element has a different type than user expected.">simdjson::INCORRECT_TYPE</a></code> after trying to convert a value to an incorrect type: e.g., you expected a number and try to convert the value to a number, but it is an array.</li>
+<li>You may query a key from an object, but the key is missing in which case you get the error <code><a class="el" href="namespacesimdjson.html#a7b735a3a50ba79e3f7f14df5f77d8da9a4a2c71f8eca438b3f0553a2811bdab9a" title="JSON field not found in object.">simdjson::NO_SUCH_FIELD</a></code>: e.g., you call <code>obj["myname"]</code> and the object does not have a key <code>"myname"</code>.</li>
+</ul>
+<p>Other errors (e.g., <code><a class="el" href="namespacesimdjson.html#a7b735a3a50ba79e3f7f14df5f77d8da9ab8a4df583110f900741d0b3f229f349a" title="The document ends early.">simdjson::INCOMPLETE_ARRAY_OR_OBJECT</a></code>) may indicate a fatal error and often follow from the fact that the document is not valid JSON. In which case, it is no longer possible to continue accessing the document: calling the method <code>is_alive()</code> on the document instance returns false. All following accesses will keep returning the same fatal error (e.g., <code><a class="el" href="namespacesimdjson.html#a7b735a3a50ba79e3f7f14df5f77d8da9ab8a4df583110f900741d0b3f229f349a" title="The document ends early.">simdjson::INCOMPLETE_ARRAY_OR_OBJECT</a></code>).</p>
 <p>When you use the code without exceptions, it is your responsibility to check for error before using the result: if there is an error, the result value will not be valid and using it will caused undefined behavior. Most compilers should be able to help you if you activate the right set of warnings: they can identify variables that are written to but never otherwise accessed.</p>
 <p>Let us illustrate with an example where we try to access a number that is not valid (<code>3.14.1</code>). If we want to proceed without throwing and catching exceptions, we can do so as follows:</p>
 <div class="fragment"><div class="line"> {C++}</div>
@@ -602,11 +660,11 @@ Error Handling</h1>
 <div class="line">    ondemand::parser parser;</div>
 <div class="line">    auto json = R&quot;({&quot;bad number&quot;:3.14.1 })&quot;_padded;</div>
 <div class="line">    ondemand::document doc;</div>
-<div class="line">    if( parser.iterate(json).get(doc) != SUCCESS ) { return false; }</div>
+<div class="line">    if (parser.iterate(json).get(doc) != SUCCESS) { return false; }</div>
 <div class="line">    double x;</div>
 <div class="line">    auto error = doc[&quot;bad number&quot;].get_double().get(x);</div>
 <div class="line">    // returns &quot;simdjson::NUMBER_ERROR&quot;</div>
-<div class="line">    if(error != SUCCESS) {</div>
+<div class="line">    if (error != SUCCESS) {</div>
 <div class="line">      std::cout &lt;&lt; error &lt;&lt; std::endl;</div>
 <div class="line">      return false;</div>
 <div class="line">    }</div>
@@ -653,10 +711,10 @@ Error Handling</h1>
 <div class="line">int main(void) {</div>
 <div class="line">  simdjson::ondemand::parser parser;</div>
 <div class="line">  auto error = padded_string::load(&quot;twitter.json&quot;).get(json);</div>
-<div class="line">  if(error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return EXIT_FAILURE; }</div>
+<div class="line">  if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return EXIT_FAILURE; }</div>
 <div class="line">  simdjson::ondemand::document tweets;</div>
 <div class="line">  error = parser.iterate(json).get(tweets);</div>
-<div class="line">  if( error ) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return EXIT_FAILURE; }</div>
+<div class="line">  if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return EXIT_FAILURE; }</div>
 <div class="line">  simdjson::ondemand::value res;</div>
 <div class="line">  error = tweets[&quot;search_metadata&quot;][&quot;count&quot;].get(res);</div>
 <div class="line">  if (error != SUCCESS) {</div>
@@ -682,12 +740,12 @@ Error Handling</h1>
 <div class="line">  simdjson::ondemand::document tweets;</div>
 <div class="line">  padded_string json;</div>
 <div class="line">  auto error = padded_string::load(&quot;twitter.json&quot;).get(json);</div>
-<div class="line">  if(error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return EXIT_FAILURE; }</div>
+<div class="line">  if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return EXIT_FAILURE; }</div>
 <div class="line">  error = parser.iterate(json).get(tweets);</div>
-<div class="line">  if(error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return EXIT_FAILURE; }</div>
+<div class="line">  if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return EXIT_FAILURE; }</div>
 <div class="line">  uint64_t identifier;</div>
 <div class="line">  error = tweets[&quot;statuses&quot;].at(0)[&quot;id&quot;].get(identifier);</div>
-<div class="line">  if(error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return EXIT_FAILURE; }</div>
+<div class="line">  if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return EXIT_FAILURE; }</div>
 <div class="line">  std::cout &lt;&lt; identifier &lt;&lt; std::endl;</div>
 <div class="line">}</div>
 </div><!-- fragment --><p>The <code>at</code> method can only be called once on an array. It cannot be used to iterate through the values of an array.</p>
@@ -706,40 +764,40 @@ Error Handling Examples without Exceptions</h2>
 <div class="line"> </div>
 <div class="line">  // Iterating through an array of objects</div>
 <div class="line">  auto error = parser.iterate(cars_json).get(doc);</div>
-<div class="line">  if(error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
+<div class="line">  if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
 <div class="line">  ondemand::array cars; // invalid until the get() succeeds</div>
 <div class="line">  error = doc.get_array().get(cars);</div>
 <div class="line"> </div>
 <div class="line">  for (auto car_value : cars) {</div>
 <div class="line">    ondemand::object car; // invalid until the get() succeeds</div>
 <div class="line">    error = car_value.get_object().get(car);</div>
-<div class="line">    if(error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
+<div class="line">    if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
 <div class="line"> </div>
 <div class="line">    // Accessing a field by name</div>
 <div class="line">    std::string_view make;</div>
 <div class="line">    std::string_view model;</div>
 <div class="line">    error = car[&quot;make&quot;].get(make);</div>
-<div class="line">    if(error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
+<div class="line">    if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
 <div class="line">    error = car[&quot;model&quot;].get(model);</div>
-<div class="line">    if(error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
+<div class="line">    if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
 <div class="line"> </div>
 <div class="line">    cout &lt;&lt; &quot;Make/Model: &quot; &lt;&lt; make &lt;&lt; &quot;/&quot; &lt;&lt; model &lt;&lt; endl;</div>
 <div class="line"> </div>
 <div class="line">    // Casting a JSON element to an integer</div>
-<div class="line">    uint64_t year;</div>
+<div class="line">    uint64_t year{};</div>
 <div class="line">    error = car[&quot;year&quot;].get(year);</div>
-<div class="line">    if(error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
+<div class="line">    if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
 <div class="line">    cout &lt;&lt; &quot;- This car is &quot; &lt;&lt; 2020 - year &lt;&lt; &quot; years old.&quot; &lt;&lt; endl;</div>
 <div class="line"> </div>
 <div class="line">    // Iterating through an array of floats</div>
 <div class="line">    double total_tire_pressure = 0;</div>
 <div class="line">    ondemand::array pressures;</div>
 <div class="line">    error = car[&quot;tire_pressure&quot;].get_array().get(pressures);</div>
-<div class="line">    if(error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
+<div class="line">    if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
 <div class="line">    for (auto tire_pressure_value : pressures) {</div>
 <div class="line">      double tire_pressure;</div>
 <div class="line">      error = tire_pressure_value.get_double().get(tire_pressure);</div>
-<div class="line">      if(error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
+<div class="line">      if (error) { std::cerr &lt;&lt; error &lt;&lt; std::endl; return false; }</div>
 <div class="line">      total_tire_pressure += tire_pressure;</div>
 <div class="line">    }</div>
 <div class="line">    cout &lt;&lt; &quot;- Average tire pressure: &quot; &lt;&lt; (total_tire_pressure / 4) &lt;&lt; endl;</div>
@@ -751,7 +809,7 @@ Error Handling Examples without Exceptions</h2>
 <div class="line">   ondemand::object car; // invalid until the get() succeeds</div>
 <div class="line">   // the `car` instance should not use used before it is initialized</div>
 <div class="line">   error = car_value.get_object().get(car);</div>
-<div class="line">   if(error) {</div>
+<div class="line">   if (error) {</div>
 <div class="line">     // the `car` instance should not use used</div>
 <div class="line">   } else {</div>
 <div class="line">     // the `car` instance can be safely used</div>
@@ -761,18 +819,20 @@ Error Handling Examples without Exceptions</h2>
 <div class="line"> ondemand::parser parser;</div>
 <div class="line"> ondemand::document doc;</div>
 <div class="line"> auto error = parser.iterate(json).get(doc);</div>
-<div class="line"> if(error) { return false; }</div>
+<div class="line"> if (error) { return false; }</div>
 <div class="line"> ondemand::object object; // invalid until the get() succeeds</div>
 <div class="line"> error = doc.get_object().get(object);</div>
-<div class="line"> if(error) { return false; }</div>
+<div class="line"> if (error) { return false; }</div>
 <div class="line"> for(auto field : object) {</div>
+<div class="line">   // We could replace &#39;field.key() with field.unescaped_key(),</div>
+<div class="line">   // and ondemand::raw_json_string by std::string_view.</div>
 <div class="line">   ondemand::raw_json_string keyv;</div>
 <div class="line">   error = field.key().get(keyv);</div>
-<div class="line">   if(error) { return false; }</div>
-<div class="line">   if(keyv == &quot;key&quot;) {</div>
+<div class="line">   if (error) { return false; }</div>
+<div class="line">   if (keyv == &quot;key&quot;) {</div>
 <div class="line">     uint64_t intvalue;</div>
 <div class="line">     error = field.value().get(intvalue);</div>
-<div class="line">     if(error) { return false; }</div>
+<div class="line">     if (error) { return false; }</div>
 <div class="line">     std::cout &lt;&lt; intvalue;</div>
 <div class="line">   }</div>
 <div class="line"> }</div>
@@ -799,9 +859,27 @@ Exceptions</h2>
 <div class="line">  std::cout &lt;&lt; identifier &lt;&lt; std::endl;</div>
 <div class="line">  return EXIT_SUCCESS;</div>
 <div class="line">}</div>
+</div><!-- fragment --><p>You can do handle errors gracefully as well...</p>
+<div class="fragment"><div class="line"> {C++}</div>
+<div class="line">#include &lt;iostream&gt;</div>
+<div class="line">#include &quot;simdjson.h&quot;</div>
+<div class="line">int main(void) {</div>
+<div class="line">  simdjson::ondemand::parser parser;</div>
+<div class="line">  simdjson::padded_string json_string;</div>
+<div class="line">  simdjson::ondemand::document doc;</div>
+<div class="line">  try {</div>
+<div class="line">    json_string = padded_string::load(&quot;twitter.json&quot;);</div>
+<div class="line">    doc = parser.iterate(json_string);</div>
+<div class="line">    uint64_t identifier = doc[&quot;statuses&quot;].at(0)[&quot;id&quot;];</div>
+<div class="line">    std::cout &lt;&lt; identifier &lt;&lt; std::endl;</div>
+<div class="line">  } catch (simdjson::simdjson_error &amp;error) {</div>
+<div class="line">    std::cerr &lt;&lt; &quot;JSON error: &quot; &lt;&lt; error.what() &lt;&lt; &quot; near &quot;</div>
+<div class="line">              &lt;&lt; doc.current_location() &lt;&lt; &quot; in &quot; &lt;&lt; json_string &lt;&lt; std::endl;</div>
+<div class="line">  }</div>
+<div class="line">}</div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md18"></a>
 Current location in document</h2>
-<p>Sometimes, it might be helpful to know the current location in the document during iteration. This is especially useful when encountering errors. The <code>current_location()</code> method on a <code>document</code> instances makes it easy to identify common JSON errors. Users can call the <code>current_location()</code> method on a validdocument instance to retrieve a <code>const char *</code> pointer to the current location in the document. This method also works even after an error has invalidated the document and the parser (e.g. <code>TAPE_ERROR</code>, <code>INCOMPLETE_ARRAY_OR_OBJECT</code>). When the input was a <code>padding_string</code> or another null-terminated source, then you may use the <code>const char *</code> pointer as a C string. As an example, consider the following example where we used the exception-free simdjson interface:</p>
+<p>Sometimes, it might be helpful to know the current location in the document during iteration. This is especially useful when encountering errors. The <code>current_location()</code> method on a <code>document</code> instances makes it easy to identify common JSON errors. Users can call the <code>current_location()</code> method on a valid document instance to retrieve a <code>const char *</code> pointer to the current location in the document. This method also works even after an error has invalidated the document and the parser (e.g. <code>TAPE_ERROR</code>, <code>INCOMPLETE_ARRAY_OR_OBJECT</code>). When the input was a <code>padding_string</code> or another null-terminated source, then you may use the <code>const char *</code> pointer as a C string. As an example, consider the following example where we used the exception-free simdjson interface:</p>
 <div class="fragment"><div class="line"> {c++}</div>
 <div class="line">auto broken_json = R&quot;( {&quot;double&quot;: 13.06, false, &quot;integer&quot;: -343} )&quot;_padded;    // Missing key</div>
 <div class="line">ondemand::parser parser;</div>
@@ -810,6 +888,12 @@ Current location in document</h2>
 <div class="line">auto error = doc[&quot;integer&quot;].get_int64().get(i);    // Expect to get integer from &quot;integer&quot; key, but get TAPE_ERROR</div>
 <div class="line">if (error) {</div>
 <div class="line">  std::cout &lt;&lt; error &lt;&lt; std::endl;    // Prints TAPE_ERROR error message</div>
+<div class="line">  // Recover a pointer to the location of the first error:</div>
+<div class="line">  const char * ptr;</div>
+<div class="line">  doc.current_location().get(ptr);</div>
+<div class="line">  // ptr points at &#39;false, &quot;integer&quot;: -343} &quot; which is the location of the error</div>
+<div class="line">  //</div>
+<div class="line">  // Because we pad simdjson::padded_string instances with null characters, you may also do the following:</div>
 <div class="line">  std::cout&lt;&lt; doc.current_location() &lt;&lt; std::endl;  // Prints &quot;false, &quot;integer&quot;: -343} &quot; (location of TAPE_ERROR)</div>
 <div class="line">}</div>
 </div><!-- fragment --><p>You may also use <code>current_location()</code> with exceptions as follows:</p>
@@ -857,7 +941,23 @@ Current location in document</h2>
 <div class="line">  }</div>
 <div class="line">}</div>
 </div><!-- fragment --><p>The <code>current_location()</code> method requires a valid <code>document</code> instance. If the <code>iterate</code> function fails to return a valid document, then you cannot use <code>current_location()</code> to identify the location of an error in the input string. The errors reported by <code>iterate</code> function include EMPTY if no JSON document is detected, UTF8_ERROR if the string is not a valid UTF-8 string, UNESCAPED_CHARS if a string contains control characters that must be escaped and UNCLOSED_STRING if there is an unclosed string in the document. We do not provide location information for these errors.</p>
-<h1><a class="anchor" id="autotoc_md19"></a>
+<h2><a class="anchor" id="autotoc_md19"></a>
+Checking for trailing content</h2>
+<p>The parser validates all parsed content, but your code may exhaust the content while not having processed the entire document. Thus, as a final optional step, you may call <code>at_end()</code> on the document instance. If it returns <code>false</code>, then you may conclude that you have trailing content and that your document is not valid JSON. You may then use <code>doc.current_location()</code> to obtain a pointer to the start of the trailing content.</p>
+<div class="fragment"><div class="line">{C++}</div>
+<div class="line"> auto json = R&quot;([1, 2] foo ])&quot;_padded;</div>
+<div class="line"> ondemand::parser parser;</div>
+<div class="line"> ondemand::document doc = parser.iterate(json);</div>
+<div class="line"> ondemand::array array = doc.get_array();</div>
+<div class="line"> for (uint64_t values : array) {</div>
+<div class="line">   std::cout &lt;&lt; values &lt;&lt; std::endl;</div>
+<div class="line"> }</div>
+<div class="line"> if (!doc.at_end()) {</div>
+<div class="line">   // In this instance, we will be left pointing at &#39;foo&#39; since we have consumed the array [1,2].</div>
+<div class="line">   std::cerr &lt;&lt; &quot;trailing content at byte index &quot; &lt;&lt; doc.current_location() - json.data() &lt;&lt; std::endl;</div>
+<div class="line"> }</div>
+</div><!-- fragment --><p>The <code>at_end()</code> method is equivalent to <code>doc.current_location().error() == <a class="el" href="namespacesimdjson.html#a7b735a3a50ba79e3f7f14df5f77d8da9aa4ffc800804829a88c5b52ac3c4c6681" title="No error.">simdjson::SUCCESS</a></code> but more convenient.</p>
+<h1><a class="anchor" id="autotoc_md20"></a>
 Rewinding</h1>
 <p>In some instances, you may need to go through a document more than once. For that purpose, you may call the <code>rewind()</code> method on the document instance. It allows you to restart processing from the beginning without rescanning all of the input data again. It invalidates all values, objects and arrays that you have created so far (including unescaped strings).</p>
 <p>In the following example, we print on the screen the number of cars in the JSON input file before printout the data.</p>
@@ -871,7 +971,7 @@ Rewinding</h1>
 <div class="line"> </div>
 <div class="line"> auto doc = parser.iterate(cars_json);</div>
 <div class="line"> for (simdjson_unused ondemand::object car : doc) {</div>
-<div class="line">   if(car[&quot;make&quot;] == &quot;Toyota&quot;) { count++; }</div>
+<div class="line">   if (car[&quot;make&quot;] == &quot;Toyota&quot;) { count++; }</div>
 <div class="line"> }</div>
 <div class="line"> std::cout &lt;&lt; &quot;We have &quot; &lt;&lt; count &lt;&lt; &quot; Toyota cars.\n&quot;;</div>
 <div class="line"> doc.rewind(); // requires simdjson 1.0 or better</div>
@@ -880,25 +980,6 @@ Rewinding</h1>
 <div class="line"> }</div>
 </div><!-- fragment --><p>Performance note: the On Demand front-end does not materialize the parsed numbers and other values. If you are accessing everything twice, you may need to parse them twice. Thus the rewind functionality is best suited for cases where the first pass only scans the structure of the document.</p>
 <p>Both arrays and objects have a similar method <code>reset()</code>. It is similar to the document <code>rewind()</code> method, except that it does not rewind the internal string buffer. Thus you should consume values only once even if you can iterate through the array or object more than once. If you unescape a string within an array more than once, you have unsafe code.</p>
-<h1><a class="anchor" id="autotoc_md20"></a>
-Direct Access to the Raw String</h1>
-<p>The simdjson library makes explicit assumptions about types. For examples, numbers must be integers (up to 64-bit integers) or binary64 floating-point numbers. Some users have different needs. For example, some users might want to support big integers. The library makes this possible by providing a <code>raw_json_token</code> method which returns a <code>std::string_view</code> instance containing the value as a string which you may then parse as you see fit.</p>
-<div class="fragment"><div class="line"> {C++}</div>
-<div class="line">simdjson::ondemand::parser parser;</div>
-<div class="line">simdjson::padded_string docdata =  R&quot;({&quot;value&quot;:12321323213213213213213213213211223})&quot;_padded;</div>
-<div class="line">simdjson::ondemand::document doc = parser.iterate(docdata);</div>
-<div class="line">simdjson::ondemand::object obj = doc.get_object();</div>
-<div class="line">std::string_view token = obj[&quot;value&quot;].raw_json_token();</div>
-<div class="line">// token has value 12321323213213213213213213213211223, it points inside the input string</div>
-</div><!-- fragment --><p>The <code>raw_json_token</code> method even works when the JSON value is a string. In such cases, it will return the complete string with the quotes and with eventual escaped sequences as in the source document.</p>
-<div class="fragment"><div class="line"> {C++}</div>
-<div class="line">simdjson::ondemand::parser parser;</div>
-<div class="line">simdjson::padded_string docdata =  R&quot;({&quot;value&quot;:&quot;12321323213213213213213213213211223&quot;})&quot;_padded;</div>
-<div class="line">simdjson::ondemand::document doc = parser.iterate(docdata);</div>
-<div class="line">simdjson::ondemand::object obj = doc.get_object();</div>
-<div class="line">string_view token = obj[&quot;value&quot;].raw_json_token();</div>
-<div class="line">// token has value &quot;12321323213213213213213213213211223&quot;, it points inside the input string</div>
-</div><!-- fragment --><p>The <code>raw_json_token()</code> should be fast and free of allocation.</p>
 <h1><a class="anchor" id="autotoc_md21"></a>
 Newline-Delimited JSON (ndjson) and JSON lines</h1>
 <p>When processing large inputs (e.g., in the context of data engineering), engineers commonly serialize data into streams of multiple JSON documents. That is, instead of one large (e.g., 2 GB) JSON document containing multiple records, it is often preferable to write out multiple records as independent JSON documents, to be read one-by-one.</p>
@@ -926,18 +1007,18 @@ Newline-Delimited JSON (ndjson) and JSON lines</h1>
 <div class="line">ondemand::document_stream stream;</div>
 <div class="line">size_t counter{0};</div>
 <div class="line">auto error = parser.iterate_many(json, 50).get(stream);</div>
-<div class="line">if( error ) { /* handle the error */ }</div>
+<div class="line">if (error) { /* handle the error */ }</div>
 <div class="line">for (auto doc: stream) {</div>
-<div class="line">  if(counter &lt; 6) {</div>
+<div class="line">  if (counter &lt; 6) {</div>
 <div class="line">    int64_t val;</div>
 <div class="line">    error = doc.at_pointer(&quot;/4&quot;).get(val);</div>
-<div class="line">    if( error ) { /* handle the error */ }</div>
+<div class="line">    if (error) { /* handle the error */ }</div>
 <div class="line">    std::cout &lt;&lt; &quot;5 = &quot; &lt;&lt; val &lt;&lt; std::endl;</div>
 <div class="line">  } else {</div>
 <div class="line">    ondemand::value val;</div>
 <div class="line">    error = doc.at_pointer(&quot;/4&quot;).get(val);</div>
 <div class="line">    // error == simdjson::CAPACITY</div>
-<div class="line">    if(error) {</div>
+<div class="line">    if (error) {</div>
 <div class="line">      std::cerr &lt;&lt; error &lt;&lt; std::endl;</div>
 <div class="line">      // We left 293 bytes unprocessed at the tail end of the input.</div>
 <div class="line">      std::cout &lt;&lt; &quot; unprocessed bytes at the end: &quot; &lt;&lt; stream.truncated_bytes() &lt;&lt; std::endl;</div>
@@ -956,7 +1037,7 @@ Newline-Delimited JSON (ndjson) and JSON lines</h1>
 <div class="line">This parser can&#39;t support a document that big</div>
 <div class="line"> unprocessed bytes at the end: 293</div>
 </div><!-- fragment --><p>If your documents are large (e.g., larger than a megabyte), then the <code>iterate_many</code> function is maybe ill-suited. It is really meant to support reading efficiently streams of relatively small documents (e.g., a few kilobytes each). If you have larger documents, you should use other functions like <code>iterate</code>.</p>
-<p>See <a class="el" href="md_doc_iterate_many.html">iterate_many.md</a> for detailed information and design.</p>
+<p>We also provide some support for comma-separated documents and other advanced features. See <a class="el" href="md_doc_iterate_many.html">iterate_many.md</a> for detailed information and design.</p>
 <h1><a class="anchor" id="autotoc_md22"></a>
 Parsing Numbers Inside Strings</h1>
 <p>Though the JSON specification allows for numbers and string values, many engineers choose to integrate the numbers inside strings, e.g., they prefer <code>{"a":"1.9"}</code> to<code>{"a":1.9}</code>. The simdjson library supports parsing valid numbers inside strings which makes it more convenient for people working with those types of documents. This feature is supported through three methods: <code>get_double_in_string</code>, <code>get_int64_in_string</code> and <code>get_uint64_in_string</code>. However, it is important to note that these methods are not substitute to the regular <code>get_double</code>, <code>get_int64</code> and <code>get_uint64</code>. The usage of the <code>get_*_in_string</code> methods is solely to parse valid JSON numbers inside strings, and so we expect users to call these methods appropriately. In particular, a valid JSON number has no leading and no trailing whitespaces, and the strings <code>"nan"</code>, <code>"1e"</code> and <code>"infinity"</code> will not be accepted as valid numbers. As an example, suppose we have the following JSON text:</p>
@@ -1103,13 +1184,101 @@ Raw Strings</h1>
 <div class="line">     mystrings.push_back(valuesv);</div>
 <div class="line">   }</div>
 </div><!-- fragment --><h1><a class="anchor" id="autotoc_md25"></a>
+General Direct Access to the Raw JSON String</h1>
+<p>If your value is a string, the <code>raw_json_string</code> you with <code>get_raw_json_string()</code> gives you direct access to the unprocessed string. The simdjson library allows you to have access to the raw underlying JSON more generally.</p>
+<p>The simdjson library makes explicit assumptions about types. For examples, numbers must be integers (up to 64-bit integers) or binary64 floating-point numbers. Some users have different needs. For example, some users might want to support big integers. The library makes this possible by providing a <code>raw_json_token</code> method which returns a <code>std::string_view</code> instance containing the value as a string which you may then parse as you see fit.</p>
+<div class="fragment"><div class="line"> {C++}</div>
+<div class="line">simdjson::ondemand::parser parser;</div>
+<div class="line">simdjson::padded_string docdata =  R&quot;({&quot;value&quot;:12321323213213213213213213213211223})&quot;_padded;</div>
+<div class="line">simdjson::ondemand::document doc = parser.iterate(docdata);</div>
+<div class="line">simdjson::ondemand::object obj = doc.get_object();</div>
+<div class="line">std::string_view token = obj[&quot;value&quot;].raw_json_token();</div>
+<div class="line">// token has value 12321323213213213213213213213211223, it points inside the input string</div>
+</div><!-- fragment --><p>The <code>raw_json_token</code> method even works when the JSON value is a string. In such cases, it will return the complete string with the quotes and with eventual escaped sequences as in the source document.</p>
+<div class="fragment"><div class="line"> {C++}</div>
+<div class="line">simdjson::ondemand::parser parser;</div>
+<div class="line">simdjson::padded_string docdata =  R&quot;({&quot;value&quot;:&quot;12321323213213213213213213213211223&quot;})&quot;_padded;</div>
+<div class="line">simdjson::ondemand::document doc = parser.iterate(docdata);</div>
+<div class="line">simdjson::ondemand::object obj = doc.get_object();</div>
+<div class="line">string_view token = obj[&quot;value&quot;].raw_json_token();</div>
+<div class="line">// token has value &quot;12321323213213213213213213213211223&quot;, it points inside the input string</div>
+</div><!-- fragment --><p>The <code>raw_json_token()</code> should be fast and free of allocation.</p>
+<p>If you value is an array or an object, <code>raw_json_token()</code> returns effectively a single character (<code>[</code>) or (<code>}</code>) which is not very useful. For arrays and objects, we have another method called <code>raw_json()</code> which consumes (traverse) the array or the object.</p>
+<div class="fragment"><div class="line"> {C++}</div>
+<div class="line">simdjson::ondemand::parser parser;</div>
+<div class="line">simdjson::padded_string docdata =  R&quot;({&quot;value&quot;:123})&quot;_padded;</div>
+<div class="line">simdjson::ondemand::document doc = parser.iterate(docdata);</div>
+<div class="line">simdjson::ondemand::object obj = doc.get_object();</div>
+<div class="line">string_view token = obj.raw_json(); // gives you `{&quot;value&quot;:123}`</div>
+</div><!-- fragment --><div class="fragment"><div class="line"> {C++}</div>
+<div class="line">simdjson::ondemand::parser parser;</div>
+<div class="line">simdjson::padded_string docdata =  R&quot;([1,2,3])&quot;_padded;</div>
+<div class="line">simdjson::ondemand::document doc = parser.iterate(docdata);</div>
+<div class="line">simdjson::ondemand::array arr = doc.get_array();</div>
+<div class="line">string_view token = arr.raw_json(); // gives you `[1,2,3]`</div>
+</div><!-- fragment --><p>Because <code>raw_json()</code> consumes to object or the array, if you want to both have access to the raw string, and also use the array or object, you should call <code>reset()</code>.</p>
+<div class="fragment"><div class="line"> {C++}</div>
+<div class="line">simdjson::ondemand::parser parser;</div>
+<div class="line">simdjson::padded_string docdata =  R&quot;({&quot;value&quot;:123})&quot;_padded;</div>
+<div class="line">simdjson::ondemand::document doc = parser.iterate(docdata);</div>
+<div class="line">simdjson::ondemand::object obj = doc.get_object();</div>
+<div class="line">string_view token = obj.raw_json(); // gives you `{&quot;value&quot;:123}`</div>
+<div class="line">obj.reset(); // revise the object</div>
+<div class="line">uint64_t x = obj[&quot;value&quot;]; // gives me 123</div>
+</div><!-- fragment --><p>You can use <code>raw_json()</code> with the values inside an array and object. When calling <code>raw_json()</code> on an untyped value, it acts as <code>raw_json()</code> when the value is an array or an object. Otherwise, it acts as <code>raw_json_token()</code>. It is useful if you do not care for the type of the value and just wants a string representation.</p>
+<div class="fragment"><div class="line">{C++}</div>
+<div class="line"> auto json = R&quot;( [1,2,&quot;fds&quot;, {&quot;a&quot;:1}, [1,344]] )&quot;_padded;</div>
+<div class="line"> ondemand::parser parser;</div>
+<div class="line"> ondemand::document doc = parser.iterate(json);</div>
+<div class="line"> size_t counter = 0;</div>
+<div class="line"> for(auto array: doc) {</div>
+<div class="line">   std::string_view raw = array.raw_json();</div>
+<div class="line">   // will capture &quot;1&quot;, &quot;2&quot;, &quot;\&quot;fds\&quot;&quot;, &quot;{\&quot;a\&quot;:1}&quot;, &quot;[1,344]&quot;</div>
+<div class="line"> }</div>
+</div><!-- fragment --><div class="fragment"><div class="line">{C++}</div>
+<div class="line"> auto json = R&quot;( {&quot;key1&quot;:1,&quot;key2&quot;:2,&quot;key3&quot;:&quot;fds&quot;, &quot;key4&quot;:{&quot;a&quot;:1}, &quot;key5&quot;:[1,344]} )&quot;_padded;</div>
+<div class="line"> ondemand::parser parser;</div>
+<div class="line"> ondemand::document doc = parser.iterate(json);</div>
+<div class="line"> size_t counter = 0;</div>
+<div class="line"> for(auto key_value: doc.get_object()) {</div>
+<div class="line">   std::string_view raw = key_value.value().raw_json();</div>
+<div class="line">   // will capture &quot;1&quot;, &quot;2&quot;, &quot;\&quot;fds\&quot;&quot;, &quot;{\&quot;a\&quot;:1}&quot;, &quot;[1,344]&quot;</div>
+<div class="line"> }</div>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md26"></a>
+Storing Directly into an Existing String Instance</h1>
+<p>The simdjson library favours the use of <code>std::string_view</code> instances because it tends to lead to better performance due to causing fewer memory allocations. However, they are cases where you need to store a string result in an <code>std::string</code><code> instance. You can do so with a templated version of the</code>to_string()<code>method which takes as a parameter a reference to an</code>std::string`.</p>
+<div class="fragment"><div class="line"> {C++}</div>
+<div class="line">  auto json = R&quot;({</div>
+<div class="line">  &quot;name&quot;: &quot;Daniel&quot;,</div>
+<div class="line">  &quot;age&quot;: 42</div>
+<div class="line">})&quot;_padded;</div>
+<div class="line">  ondemand::parser parser;</div>
+<div class="line">  ondemand::document doc = parser.iterate(json);</div>
+<div class="line">  std::string name;</div>
+<div class="line">  doc[&quot;name&quot;].get_string(name);</div>
+</div><!-- fragment --><p>The same routine can be written without exceptions handling:</p>
+<div class="fragment"><div class="line">{C++}</div>
+<div class="line"> std::string name;</div>
+<div class="line"> auto err = doc[&quot;name&quot;].get_string(name);</div>
+<div class="line"> if(err) { /* handle error */ }</div>
+</div><!-- fragment --><p>The <code>std::string</code> instance, once created, is independent. Unlike our <code>std::string_view</code> instances, it does not point at data that is within our <code>parser</code> instance. The same caveat applies: you should only consume a JSON string once.</p>
+<p>Because <code>get_string()</code> is a template that requires a type that can be assigned an <code>std::string</code>, you can use it with features such as <code>std::optional</code>:</p>
+<div class="fragment"><div class="line">{C++}</div>
+<div class="line"> auto json = R&quot;({ &quot;foo1&quot;: &quot;3.1416&quot; } )&quot;_padded;</div>
+<div class="line"> ondemand::parser parser;</div>
+<div class="line"> ondemand::document doc = parser.iterate(json);</div>
+<div class="line"> std::optional&lt;std::string&gt; value;</div>
+<div class="line"> if(doc[&quot;foo1&quot;].get_string(value)) { /* error */ }</div>
+<div class="line"> // value was populated with &quot;3.1416&quot;</div>
+</div><!-- fragment --><p>You should be mindful of the trade-off: allocating multiple <code>std::string</code> instances can become expensive.</p>
+<h1><a class="anchor" id="autotoc_md27"></a>
 Thread Safety</h1>
 <p>We built simdjson with thread safety in mind.</p>
 <p>The simdjson library is single-threaded except for <a class="el" href="md_doc_iterate_many.html">`iterate_many`</a> and <a class="el" href="md_doc_parse_many.html">`parse_many`</a> which may use secondary threads under their control when the library is compiled with thread support.</p>
 <p>We recommend using one <code>parser</code> object per thread. When using the On Demand front-end (our default), you should access the <code>document</code> instances in a single-threaded manner since it acts as an iterator (and is therefore not thread safe).</p>
 <p>The CPU detection, which runs the first time parsing is attempted and switches to the fastest parser for your CPU, is transparent and thread-safe.</p>
 <p>In a threaded environment, stack space is often limited. Running code like simdjson in debug mode may require hundreds of kilobytes of stack memory. Thus stack overflows are a possibility. We recommend you turn on optimization when working in an environment where stack space is limited. If you must run your code in debug mode, we recommend you configure your system to have more stack space. We discourage you from running production code based on a debug build.</p>
-<h1><a class="anchor" id="autotoc_md26"></a>
+<h1><a class="anchor" id="autotoc_md28"></a>
 Standard Compliance</h1>
 <p>The simdjson library is fully compliant with the <a href="https://www.tbray.org/ongoing/When/201x/2017/12/14/rfc8259.html">RFC 8259</a> JSON specification.</p>
 <ul>
@@ -1127,9 +1296,279 @@ Standard Compliance</h1>
 <li>The specification states that an implementation may set limits on the size of texts that it accepts. The simdjson library limits single JSON documents to 4 GiB. It will refuse to parse a JSON document larger than 4294967295 bytes. (This limitation does not apply to streams of JSON documents, only to single JSON documents.)</li>
 <li>The specification states that an implementation may set limits on the maximum depth of nesting. By default, the simdjson will refuse to parse documents with a depth exceeding 1024.</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md27"></a>
+<h1><a class="anchor" id="autotoc_md29"></a>
 Backwards Compatibility</h1>
-<p>The only header file supported by simdjson is <code><a class="el" href="simdjson_8h.html">simdjson.h</a></code>. Older versions of simdjson published a number of other include files such as <code>document.h</code> or <code><a class="el" href="parsedjson_8h_source.html">ParsedJson.h</a></code> alongside <code><a class="el" href="simdjson_8h.html">simdjson.h</a></code>; these headers may be moved or removed in future versions. </p>
+<p>The only header file supported by simdjson is <code><a class="el" href="simdjson_8h.html">simdjson.h</a></code>. Older versions of simdjson published a number of other include files such as <code>document.h</code> or <code><a class="el" href="parsedjson_8h_source.html">ParsedJson.h</a></code> alongside <code><a class="el" href="simdjson_8h.html">simdjson.h</a></code>; these headers may be moved or removed in future versions.</p>
+<h1><a class="anchor" id="autotoc_md30"></a>
+Examples</h1>
+<p>Some users like to have example. The following code samples illustrate how to process specific JSON inputs. For simplicity, we do not include full error support: this code would throw exceptions on error.</p>
+<ul>
+<li>Example 1: ZuluBBox</li>
+</ul>
+<div class="fragment"><div class="line"> {C++}</div>
+<div class="line">struct ZuluBBox {</div>
+<div class="line">  double xmin;</div>
+<div class="line">  double ymin;</div>
+<div class="line">  double width;</div>
+<div class="line">  double height;</div>
+<div class="line"> </div>
+<div class="line">  void print() {</div>
+<div class="line">    std::cout &lt;&lt; xmin &lt;&lt; &quot;, &quot; &lt;&lt; ymin &lt;&lt; &quot;, &quot; &lt;&lt; width &lt;&lt; &quot;, &quot; &lt;&lt; height</div>
+<div class="line">              &lt;&lt; std::endl;</div>
+<div class="line">  }</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">bool example() {</div>
+<div class="line"> </div>
+<div class="line">  auto json = R&quot;+( {</div>
+<div class="line">  &quot;ZuluROI&quot;: {</div>
+<div class="line">    &quot;ZuluBBox&quot;: {</div>
+<div class="line">      &quot;xmin&quot;: 0,</div>
+<div class="line">      &quot;ymin&quot;: 0,</div>
+<div class="line">      &quot;width&quot;: 1,</div>
+<div class="line">      &quot;height&quot;: 1</div>
+<div class="line">    },</div>
+<div class="line">    &quot;SubObjects&quot;: [</div>
+<div class="line">      {</div>
+<div class="line">        &quot;ZuluDetection&quot;: {</div>
+<div class="line">          &quot;label&quot;: &quot;car&quot;,</div>
+<div class="line">          &quot;class_id&quot;: 3,</div>
+<div class="line">          &quot;confidence&quot;: 0.7587034106254578,</div>
+<div class="line">          &quot;ZuluBBox&quot;: {</div>
+<div class="line">            &quot;xmin&quot;: 0.3843536376953125,</div>
+<div class="line">            &quot;ymin&quot;: 0.4532909393310547,</div>
+<div class="line">            &quot;width&quot;: 0.09115534275770187,</div>
+<div class="line">            &quot;height&quot;: 0.04127710685133934</div>
+<div class="line">          },</div>
+<div class="line">          &quot;SubObjects&quot;: []</div>
+<div class="line">        }</div>
+<div class="line">      },</div>
+<div class="line">      {</div>
+<div class="line">        &quot;ZuluDetection&quot;: {</div>
+<div class="line">          &quot;label&quot;: &quot;car&quot;,</div>
+<div class="line">          &quot;class_id&quot;: 3,</div>
+<div class="line">          &quot;confidence&quot;: 0.6718865633010864,</div>
+<div class="line">          &quot;ZuluBBox&quot;: {</div>
+<div class="line">            &quot;xmin&quot;: 0.7500002980232239,</div>
+<div class="line">            &quot;ymin&quot;: 0.5212296843528748,</div>
+<div class="line">            &quot;width&quot;: 0.07592231780290604,</div>
+<div class="line">            &quot;height&quot;: 0.038947589695453644</div>
+<div class="line">          },</div>
+<div class="line">          &quot;SubObjects&quot;: []</div>
+<div class="line">        }</div>
+<div class="line">      },</div>
+<div class="line">      {</div>
+<div class="line">        &quot;ZuluDetection&quot;: {</div>
+<div class="line">          &quot;label&quot;: &quot;car&quot;,</div>
+<div class="line">          &quot;class_id&quot;: 3,</div>
+<div class="line">          &quot;confidence&quot;: 0.5806200504302979,</div>
+<div class="line">          &quot;ZuluBBox&quot;: {</div>
+<div class="line">            &quot;xmin&quot;: 0.9025363922119141,</div>
+<div class="line">            &quot;ymin&quot;: 0.5925348401069641,</div>
+<div class="line">            &quot;width&quot;: 0.05478987470269203,</div>
+<div class="line">            &quot;height&quot;: 0.046337299048900604</div>
+<div class="line">          },</div>
+<div class="line">          &quot;SubObjects&quot;: []</div>
+<div class="line">        }</div>
+<div class="line">      }</div>
+<div class="line">    ]</div>
+<div class="line">  },</div>
+<div class="line">  &quot;timestamp (ms)&quot;: 1677085594421,</div>
+<div class="line">  &quot;buffer_offset&quot;: 35673</div>
+<div class="line">} )+&quot;_padded;</div>
+<div class="line">  ondemand::parser parser;</div>
+<div class="line">  ondemand::document doc = parser.iterate(json);</div>
+<div class="line">  ondemand::object root_object = doc.get_object();</div>
+<div class="line">  ondemand::object roi_object = root_object[&quot;ZuluROI&quot;];</div>
+<div class="line"> </div>
+<div class="line">  ondemand::object box_roi_object = roi_object[&quot;ZuluBBox&quot;];</div>
+<div class="line">  ZuluBBox box = {</div>
+<div class="line">      double(box_roi_object[&quot;xmin&quot;]), double(box_roi_object[&quot;ymin&quot;]),</div>
+<div class="line">      double(box_roi_object[&quot;width&quot;]), double(box_roi_object[&quot;height&quot;])};</div>
+<div class="line">  box.print();</div>
+<div class="line"> </div>
+<div class="line">  for (ondemand::object value : roi_object[&quot;SubObjects&quot;]) {</div>
+<div class="line">    ondemand::object detect = value[&quot;ZuluDetection&quot;];</div>
+<div class="line">    std::cout &lt;&lt; detect[&quot;label&quot;].get_string() &lt;&lt; std::endl;</div>
+<div class="line">    std::cout &lt;&lt; detect[&quot;class_id&quot;].get_uint64() &lt;&lt; std::endl;</div>
+<div class="line">    std::cout &lt;&lt; detect[&quot;confidence&quot;].get_double() &lt;&lt; std::endl;</div>
+<div class="line"> </div>
+<div class="line">    ondemand::object vbox_roi_object = detect[&quot;ZuluBBox&quot;];</div>
+<div class="line">    ZuluBBox vbox = {</div>
+<div class="line">        double(vbox_roi_object[&quot;xmin&quot;]), double(vbox_roi_object[&quot;ymin&quot;]),</div>
+<div class="line">        double(vbox_roi_object[&quot;width&quot;]), double(vbox_roi_object[&quot;height&quot;])};</div>
+<div class="line">    vbox.print();</div>
+<div class="line">  }</div>
+<div class="line"> </div>
+<div class="line">  std::cout &lt;&lt; root_object[&quot;timestamp (ms)&quot;].get_uint64() &lt;&lt; std::endl;</div>
+<div class="line">  std::cout &lt;&lt; root_object[&quot;buffer_offset&quot;].get_uint64() &lt;&lt; std::endl;</div>
+<div class="line">  return true;</div>
+<div class="line">}</div>
+</div><!-- fragment --><ul>
+<li>Example 2: Demos</li>
+</ul>
+<div class="fragment"><div class="line"> {C++}</div>
+<div class="line">bool example() {</div>
+<div class="line">  auto json = R&quot;+( {</div>
+<div class="line">    &quot;5f08a730b280e54fd1e75a7046b93fdc&quot;: {</div>
+<div class="line">        &quot;file&quot;: &quot;/DEMOS/0-9/10_Orbyte.sid&quot;,</div>
+<div class="line">        &quot;len&quot;: [</div>
+<div class="line">            &quot;1:17&quot;</div>
+<div class="line">        ],</div>
+<div class="line">        &quot;loud&quot;: [</div>
+<div class="line">            &quot;-22.8&quot;</div>
+<div class="line">        ],</div>
+<div class="line">        &quot;name&quot;: &quot;10 Orbyte&quot;,</div>
+<div class="line">        &quot;author&quot;: &quot;Michael Becker (Premium)&quot;,</div>
+<div class="line">        &quot;release&quot;: &quot;2014 Tristar &amp; Red Sector Inc.&quot;,</div>
+<div class="line">        &quot;bits&quot;: 20</div>
+<div class="line">    },</div>
+<div class="line">    &quot;2727236ead44a62f0c6e01f6dd4dc484&quot;: {</div>
+<div class="line">        &quot;file&quot;: &quot;/DEMOS/0-9/12345.sid&quot;,</div>
+<div class="line">        &quot;len&quot;: [</div>
+<div class="line">            &quot;0:56&quot;</div>
+<div class="line">        ],</div>
+<div class="line">        &quot;loud&quot;: [</div>
+<div class="line">            &quot;-33.3&quot;</div>
+<div class="line">        ],</div>
+<div class="line">        &quot;name&quot;: &quot;12345&quot;,</div>
+<div class="line">        &quot;author&quot;: &quot;Beal&quot;,</div>
+<div class="line">        &quot;release&quot;: &quot;1988 Beal&quot;,</div>
+<div class="line">        &quot;bits&quot;: 20</div>
+<div class="line">    },</div>
+<div class="line">    &quot;7ea765fce6c0f92570b18adc7bf52f54&quot;: {</div>
+<div class="line">        &quot;file&quot;: &quot;/DEMOS/0-9/128_Byte_Blues_BASIC.sid&quot;,</div>
+<div class="line">        &quot;len&quot;: [</div>
+<div class="line">            &quot;0:18&quot;</div>
+<div class="line">        ],</div>
+<div class="line">        &quot;loud&quot;: [</div>
+<div class="line">            &quot;-27.1&quot;</div>
+<div class="line">        ],</div>
+<div class="line">        &quot;name&quot;: &quot;128 Byte Blues&quot;,</div>
+<div class="line">        &quot;author&quot;: &quot;Leonard J. Paul (Freaky DNA)&quot;,</div>
+<div class="line">        &quot;release&quot;: &quot;2005 Freaky DNA&quot;,</div>
+<div class="line">        &quot;bits&quot;: 62</div>
+<div class="line">    }</div>
+<div class="line">} )+&quot;_padded;</div>
+<div class="line">  ondemand::parser parser;</div>
+<div class="line">  ondemand::document doc = parser.iterate(json);</div>
+<div class="line">  ondemand::object root_object = doc.get_object();</div>
+<div class="line">  for(auto key_value : root_object) {</div>
+<div class="line">    // could get std::string_view with &#39;unescaped_key()&#39;:</div>
+<div class="line">    std::cout &lt;&lt; &quot;key: &quot; &lt;&lt; key_value.key() &lt;&lt; std::endl;</div>
+<div class="line">    ondemand::object obj = key_value.value();</div>
+<div class="line"> </div>
+<div class="line">    std::cout &lt;&lt; &quot;file: &quot; &lt;&lt; std::string_view(obj[&quot;file&quot;]) &lt;&lt; std::endl;</div>
+<div class="line"> </div>
+<div class="line">    std::cout &lt;&lt; &quot;len: &quot;;</div>
+<div class="line">    for(std::string_view values : obj[&quot;len&quot;]) {</div>
+<div class="line">      std::cout &lt;&lt; values &lt;&lt; std::endl;</div>
+<div class="line">    }</div>
+<div class="line">    std::cout &lt;&lt; std::endl;</div>
+<div class="line"> </div>
+<div class="line">    std::cout &lt;&lt; &quot;loud: &quot;;</div>
+<div class="line">    for(std::string_view values : obj[&quot;loud&quot;]) {</div>
+<div class="line">      std::cout &lt;&lt; values &lt;&lt; std::endl;</div>
+<div class="line">    }</div>
+<div class="line">    std::cout &lt;&lt; std::endl;</div>
+<div class="line"> </div>
+<div class="line">    std::cout &lt;&lt; &quot;name: &quot; &lt;&lt; std::string_view(obj[&quot;name&quot;]) &lt;&lt; std::endl;</div>
+<div class="line">    std::cout &lt;&lt; &quot;author: &quot; &lt;&lt; std::string_view(obj[&quot;author&quot;]) &lt;&lt; std::endl;</div>
+<div class="line">    std::cout &lt;&lt; &quot;release: &quot; &lt;&lt; std::string_view(obj[&quot;release&quot;]) &lt;&lt; std::endl;</div>
+<div class="line">    std::cout &lt;&lt; &quot;bits: &quot; &lt;&lt; uint64_t(obj[&quot;bits&quot;]) &lt;&lt; std::endl;</div>
+<div class="line">  }</div>
+<div class="line">  return true;</div>
+<div class="line">}</div>
+</div><!-- fragment --><ul>
+<li>Example 3: CRT</li>
+</ul>
+<div class="fragment"><div class="line"> {C++}</div>
+<div class="line"> </div>
+<div class="line">bool example() {</div>
+<div class="line">  padded_string padded_input_json = R&quot;([</div>
+<div class="line">    { &quot;monitor&quot;: [</div>
+<div class="line">        { &quot;id&quot;: &quot;monitor&quot;,      &quot;type&quot;: &quot;toggle&quot;,       &quot;label&quot;: &quot;monitor&quot;          },</div>
+<div class="line">        { &quot;id&quot;: &quot;profile&quot;,      &quot;type&quot;: &quot;selector&quot;,     &quot;label&quot;: &quot;collection&quot;       },</div>
+<div class="line">        { &quot;id&quot;: &quot;overlay&quot;,      &quot;type&quot;: &quot;selector&quot;,     &quot;label&quot;: &quot;overlay&quot;          },</div>
+<div class="line">        { &quot;id&quot;: &quot;zoom&quot;,         &quot;type&quot;: &quot;toggleSlider&quot;, &quot;label&quot;: &quot;zoom&quot;             }</div>
+<div class="line">    ] },</div>
+<div class="line"> </div>
+<div class="line">    { &quot;crt&quot;: [</div>
+<div class="line">        { &quot;id&quot;: &quot;system&quot;,       &quot;type&quot;: &quot;multi&quot;,        &quot;label&quot;: &quot;system&quot;,      &quot;choices&quot;: &quot;PAL, NTSC&quot;  },</div>
+<div class="line">        { &quot;type&quot;: &quot;spacer&quot; },</div>
+<div class="line">        { &quot;id&quot;: &quot;brightness&quot;,   &quot;type&quot;: &quot;slider&quot;,       &quot;icon&quot;: &quot;brightness&quot;        },</div>
+<div class="line">        { &quot;id&quot;: &quot;contrast&quot;,     &quot;type&quot;: &quot;slider&quot;,       &quot;icon&quot;: &quot;contrast&quot;          },</div>
+<div class="line">        { &quot;id&quot;: &quot;saturation&quot;,   &quot;type&quot;: &quot;slider&quot;,       &quot;icon&quot;: &quot;saturation&quot;        },</div>
+<div class="line">        { &quot;type&quot;: &quot;spacer&quot; },</div>
+<div class="line">        { &quot;id&quot;: &quot;overscan&quot;,     &quot;type&quot;: &quot;toggleSlider&quot;, &quot;label&quot;: &quot;overscan&quot;         },</div>
+<div class="line">        { &quot;type&quot;: &quot;spacer&quot; },</div>
+<div class="line">        { &quot;id&quot;: &quot;emulation&quot;,    &quot;type&quot;: &quot;toggle&quot;,       &quot;label&quot;: &quot;CRT emulation&quot;    },</div>
+<div class="line">        { &quot;type&quot;: &quot;spacer&quot; },</div>
+<div class="line">        { &quot;id&quot;: &quot;curve&quot;,        &quot;type&quot;: &quot;toggleSlider&quot;, &quot;label&quot;: &quot;curve&quot;            },</div>
+<div class="line">        { &quot;id&quot;: &quot;bleed&quot;,        &quot;type&quot;: &quot;toggleSlider&quot;, &quot;label&quot;: &quot;bleed&quot;            },</div>
+<div class="line">        { &quot;id&quot;: &quot;vignette&quot;,     &quot;type&quot;: &quot;toggleSlider&quot;, &quot;label&quot;: &quot;vignette&quot;         },</div>
+<div class="line">        { &quot;id&quot;: &quot;scanlines&quot;,    &quot;type&quot;: &quot;toggleSlider&quot;, &quot;label&quot;: &quot;scanlines&quot;        },</div>
+<div class="line">        { &quot;id&quot;: &quot;gridlines&quot;,    &quot;type&quot;: &quot;toggleSlider&quot;, &quot;label&quot;: &quot;gridlines&quot;        },</div>
+<div class="line">        { &quot;id&quot;: &quot;glow&quot;,         &quot;type&quot;: &quot;toggleSlider&quot;, &quot;label&quot;: &quot;glow&quot;             },</div>
+<div class="line">        { &quot;id&quot;: &quot;flicker&quot;,      &quot;type&quot;: &quot;toggleSlider&quot;, &quot;label&quot;: &quot;flicker&quot;          },</div>
+<div class="line">        { &quot;id&quot;: &quot;noise&quot;,        &quot;type&quot;: &quot;toggleSlider&quot;, &quot;label&quot;: &quot;noise&quot;            },</div>
+<div class="line">    {}</div>
+<div class="line">    ] }</div>
+<div class="line">])&quot;_padded;</div>
+<div class="line">  auto parser = ondemand::parser{};</div>
+<div class="line">  auto doc = parser.iterate(padded_input_json);</div>
+<div class="line">  auto root_array = doc.get_array();</div>
+<div class="line">  // the root should be an object, not an array, but that&#39;s the JSON we are</div>
+<div class="line">  // given.</div>
+<div class="line">  for (ondemand::object node : root_array) {</div>
+<div class="line">    // We know that we are going to have just one element in the object.</div>
+<div class="line">    for (auto field : node) {</div>
+<div class="line">      std::cout &lt;&lt; &quot;\n\ntop level:&quot; &lt;&lt; field.key() &lt;&lt; std::endl;</div>
+<div class="line">      // You can get a proper std::string_view for the key with:</div>
+<div class="line">      // std::string_view key = field.unescaped_key();</div>
+<div class="line">      // and second for-range loop to get child-elements here</div>
+<div class="line">      for (ondemand::object inner_object : field.value()) {</div>
+<div class="line">        auto i = inner_object.begin();</div>
+<div class="line">        if (i == inner_object.end()) {</div>
+<div class="line">          std::cout &lt;&lt; &quot;empty object&quot; &lt;&lt; std::endl;</div>
+<div class="line">          continue;</div>
+<div class="line">        } else {</div>
+<div class="line">          for (; i != inner_object.end(); ++i) {</div>
+<div class="line">            auto inner_field = *i;</div>
+<div class="line">            std::cout &lt;&lt; &#39;&quot;&#39; &lt;&lt; inner_field.key()</div>
+<div class="line">                      &lt;&lt; &quot;\&quot; : &quot; &lt;&lt; inner_field.value() &lt;&lt; &quot;, &quot;;</div>
+<div class="line">            // You can get proper std::string_view for the key and value with:</div>
+<div class="line">            // std::string_view inner_key = field.unescaped_key();</div>
+<div class="line">            // std::string_view value_str = field.value();</div>
+<div class="line">          }</div>
+<div class="line">        }</div>
+<div class="line">        std::cout &lt;&lt; std::endl;</div>
+<div class="line">      }</div>
+<div class="line">      // You can break here if you only want just the first element.</div>
+<div class="line">      // break;</div>
+<div class="line">    }</div>
+<div class="line">  }</div>
+<div class="line">  return true;</div>
+<div class="line">}</div>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md31"></a>
+Performance Tips</h1>
+<ul>
+<li>The On Demand front-end works best when doing a single pass over the input: avoid calling <code>count_elements</code>, <code>rewind</code> and similar methods.</li>
+<li>If you are familiar with assembly language, you may use the online tool godbolt to explore the compiled code. The following example may work: <a href="https://godbolt.org/z/xE4GWs573">https://godbolt.org/z/xE4GWs573</a>.</li>
+<li>Given a field <code>field</code> in an object, calling <code>field.key()</code> is often faster than <code>field.unescaped_key()</code> so if you do not need an unescaped <code>std::string_view</code> instance, prefer <code>field.key()</code>.</li>
+<li>For release builds, we recommend setting <code>NDEBUG</code> pre-processor directive when compiling the <code>simdjson</code> library. Importantly, using the optimization flags <code>-O2</code> or <code>-O3</code> under GCC and LLVM clang does not set the <code>NDEBUG</code> directive, you must set it manually (e.g., <code>-DNDEBUG</code>).</li>
+<li>For long streams of JSON documents, consider <a class="el" href="md_doc_iterate_many.html">`iterate_many`</a> and <a class="el" href="md_doc_parse_many.html">`parse_many`</a> for better performance.</li>
+<li>Never seek to access a field twice (e.g., o["data"] and later again o["data"]). Instead capture once an ondemand::value and reuse it.</li>
+<li>If you must access several different keys in an object, it might be preferable to iterate through all the fields in the object instead, and branch on the field keys.</li>
+<li>If possible, refer to each object and array in your code once. For example, the following code repeatedly refers to the <code>"data"</code> key to create an object... ```C++ std::string_view make = o["data"]["make"]; std::string_view model = o["data"]["model"]; std::string_view year = o["data"]["year"]; <div class="fragment"><div class="line">We expect that it is more efficient to access the `&quot;data&quot;` key once:</div>
+<div class="line">```C++</div>
+<div class="line">  simdjson::ondemand::object data = o[&quot;data&quot;];</div>
+<div class="line">  std::string_view model = data[&quot;model&quot;];</div>
+<div class="line">  std::string_view year = data[&quot;year&quot;];</div>
+<div class="line">  std::string_view rating = data[&quot;rating&quot;];</div>
+</div><!-- fragment --></li>
+<li>To better understand the operation of your On Demand parser, and whether it is performing as well as you think it should be, there is a logger feature built in to simdjson! To use it, define the pre-processor directive <code>SIMDJSON_VERBOSE_LOGGING</code> prior to including the <code><a class="el" href="simdjson_8h.html">simdjson.h</a></code> header, which enables logging in simdjson. Run your code. It may generate a lot of logging output; adding printouts from your application that show each section may be helpful. The log's output will show step-by-step information on state, buffer pointer position, depth, and key retrieval status. Importantly, unless <code>SIMDJSON_VERBOSE_LOGGING</code> is defined, logging is entirely disabled and thus carries no overhead. </li>
+</ul>
 </div></div><!-- contents -->
 </div><!-- PageDoc -->
 </div><!-- doc-content -->
