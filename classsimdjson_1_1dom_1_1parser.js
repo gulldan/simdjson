@@ -7,9 +7,11 @@ var classsimdjson_1_1dom_1_1parser =
     [ "capacity", "classsimdjson_1_1dom_1_1parser.html#aedf495a6e090929be23473e8a29f2fe2", null ],
     [ "load", "classsimdjson_1_1dom_1_1parser.html#a6b460c66661f1145d454b53c7ef5f514", null ],
     [ "load", "classsimdjson_1_1dom_1_1parser.html#ab3e5bbb1974a1932aead90ad63883a23", null ],
+    [ "load_into_document", "classsimdjson_1_1dom_1_1parser.html#aaace42d42d3c5f5e5d975afcd6c04ff1", null ],
+    [ "load_into_document", "classsimdjson_1_1dom_1_1parser.html#ac7913230cb1f559bea4583bb743f9807", null ],
     [ "load_many", "classsimdjson_1_1dom_1_1parser.html#a5300851ba21d0a0273a11510fd1c378a", null ],
     [ "max_capacity", "classsimdjson_1_1dom_1_1parser.html#a8bfde4193783adef9c5f12dfc4da3bc0", null ],
-    [ "max_depth", "classsimdjson_1_1dom_1_1parser.html#a209d15b8f87ad69f5fbaccdd5b6b5441", null ],
+    [ "max_depth", "classsimdjson_1_1dom_1_1parser.html#ab090f596cd0b0c1d34576fd6aae88ee5", null ],
     [ "operator=", "classsimdjson_1_1dom_1_1parser.html#af5b61dda345cef1feba7c4529dfe0259", null ],
     [ "parse", "classsimdjson_1_1dom_1_1parser.html#aec2dcf15817bc41858bae72519562e03", null ],
     [ "parse", "classsimdjson_1_1dom_1_1parser.html#adf358420cd2a1d1b60047cde61c074d5", null ],
@@ -37,5 +39,6 @@ var classsimdjson_1_1dom_1_1parser =
     [ "parse_many", "classsimdjson_1_1dom_1_1parser.html#afb18710d2e2ef0fd40dda4887282bdb2", null ],
     [ "set_max_capacity", "classsimdjson_1_1dom_1_1parser.html#a6977b4586bc601070cf100e2973a4cbc", null ],
     [ "document_stream", "classsimdjson_1_1dom_1_1parser.html#a403473bb5329fca6defc6299fb45b780", null ],
-    [ "parser::Iterator", "classsimdjson_1_1dom_1_1parser.html#a86e3ab93ec6521c51b1eca11421201f4", null ]
+    [ "parser::Iterator", "classsimdjson_1_1dom_1_1parser.html#a86e3ab93ec6521c51b1eca11421201f4", null ],
+    [ "threaded", "classsimdjson_1_1dom_1_1parser.html#a63fe2363db0d3acf458519698beaacf4", null ]
 ];
